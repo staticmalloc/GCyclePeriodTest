@@ -24,7 +24,7 @@ class StandardDeviationFinder(val generator: Generator, val mathExpectation: Big
     fun getConfidenceInterval(): String = "[${getConfidenceIntervalMin()} <= ME <= ${getConfidenceIntervalMax()}]"
 
 
-    override fun processNewPeriod(period: Long) {
+    override fun processNewPeriod(period: Int) {
         summ += (period.toBigDecimal() - mathExpectation).pow(2)
         count++
     }
@@ -35,6 +35,7 @@ class StandardDeviationFinder(val generator: Generator, val mathExpectation: Big
         println("Results for <${generator.name}> generator:")
         println("Standard deviation of erg. Period: ${getStandardDeviation()} bytes.")
         println("Math. expectation confidence interval: ${getConfidenceInterval()} bytes.")
+        println("ME CI power: ${getConfidenceIntervalMax() - getConfidenceIntervalMin()} bytes")
         println("*********************************************")
     }
 }

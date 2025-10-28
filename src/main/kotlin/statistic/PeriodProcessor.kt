@@ -1,7 +1,7 @@
 package statistic
 
 interface PeriodProcessor {
-    fun processNewPeriod(period: Long)
+    fun processNewPeriod(period: Int)
 
     fun stop()
 }

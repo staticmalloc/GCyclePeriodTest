@@ -1,9 +1,9 @@
 import statistic.PeriodProcessor
 import java.util.*
 
-class ErgodicityPeriodFinder(private val periodProcessors: List<PeriodProcessor>) {
+class GCycleFinder(private val periodProcessors: List<PeriodProcessor>) {
 
-    constructor(processor: PeriodProcessor): this(listOf(processor))
+    constructor(processor: PeriodProcessor) : this(listOf(processor))
 
     /**
      * Subsequence of origin sequence that participates in the calculation of the current period
@@ -14,8 +14,23 @@ class ErgodicityPeriodFinder(private val periodProcessors: List<PeriodProcessor>
      * An alphabet-sized array for counting the number of occurrences of each number in the current subsequence
      */
     private val countsOfNumbers: Array<Int> = Array(256) { 0 }
+    private val firstPartSizes = (1300..1550 step 50).toList()
+    private val predictors = firstPartSizes.map { fps ->
+        (
+                GCyclePredictor(
+                    this,
+                    PredictorParameters(
+                        firstPartMinSize = fps,
+                        periodMathesCount = 254
+                    )
+                )
+                )
+    }
 
-    private var period: Long = 0L
+    private fun getCurrentNotPresentAlphabetNumbers() = countsOfNumbers.mapIndexedNotNull { index, i -> if(i == 0) index else null }
+
+    var period: Int = 0
+        private set
 
     /**
      * Checks that all values of alphabet is present in current subsequence
@@ -37,7 +52,7 @@ class ErgodicityPeriodFinder(private val periodProcessors: List<PeriodProcessor>
         return newCountsOfFirstValue != 0
     }
 
-    private fun processNewPeriod(){
+    private fun processNewPeriod() {
         periodProcessors.forEach { periodProcessor ->
             periodProcessor.processNewPeriod(period)
         }
@@ -51,19 +66,41 @@ class ErgodicityPeriodFinder(private val periodProcessors: List<PeriodProcessor>
         if (sequenceOfCurrentPeriod.size < 256)
             return
 
-        while (dropOldest() && sequenceOfCurrentPeriod.size > 256){
+        while (dropOldest() && sequenceOfCurrentPeriod.size > 256) {
             processNewPeriod()
         }
     }
 
     fun append(byte: UByte) {
         sequenceOfCurrentPeriod.add(byte)
+        val int = byte.toInt()
         countsOfNumbers[byte.toInt()]++
         period++
+        val notPresent = getCurrentNotPresentAlphabetNumbers()
+        predictors.forEach { p -> p.predict(int, notPresent) }
         if (checkAllValuesIsPresent()) {
             processNewPeriod()
             checkSubSequences()
         }
     }
 
+    fun showPredictorsResults() {
+        predictors.forEach { p -> p.showResults() }
+    }
+
+}
+
+@OptIn(ExperimentalUnsignedTypes::class)
+fun UByteArray.toInt(): Int {
+    val buffer = this
+    return when (buffer.size) {
+        0 -> throw IllegalArgumentException("Cannot convert empty Bytearray to Int")
+        1 -> buffer[0].toInt() shl 0xff
+        2 -> (buffer[0].toInt() shl 8) or (buffer[1].toInt() shl 0xff)
+        3 -> (buffer[0].toInt() shl 16) or (buffer[1].toInt() shl 8) or (buffer[2].toInt() shl 0xff)
+        else -> (buffer[0].toInt() shl 24) or
+                (buffer[1].toInt() shl 16) or
+                (buffer[2].toInt() shl 8) or
+                (buffer[3].toInt() and 0xff)
+    }
 }

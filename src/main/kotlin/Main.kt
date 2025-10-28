@@ -3,6 +3,7 @@ import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
+import statistic.DistributionDataProcessor
 import statistic.MathExpFinder
 import statistic.PeriodProcessor
 import statistic.StandardDeviationFinder
@@ -17,12 +18,12 @@ fun main() {
 
     val currentGenTypes = //listOf(Generator.SHA1, Generator.DRBG) // specified
         Generator.entries // - all
-
-    currentGenTypes
-        .map { PseudoRandomGeneratorFactory.buildGenerator(it, DEFAULT_SEED, DEFAULT_SIZE_MB) }
-        .forEach { gen ->
-            gen.writeToFile()
-        }
+//
+//    currentGenTypes
+//        .map { PseudoRandomGeneratorFactory.buildGenerator(it, DEFAULT_SEED, DEFAULT_SIZE_MB) }
+//        .forEach { gen ->
+//            gen.writeToFile()
+//        }
 
     val pool = Executors.newFixedThreadPool(Generator.entries.size)
     val dispatcher = pool.asCoroutineDispatcher()
@@ -45,9 +46,9 @@ fun main() {
 }
 
 
-private fun calculateErgodicity(type: Generator, processor: PeriodProcessor) {
+private fun calculateGCycles(type: Generator, processors: List<PeriodProcessor>): GCycleFinder {
     val iStream = File(RANDOM_SEQUENCE_PATH + type.name + SUFFIX).inputStream()
-    val erg = ErgodicityPeriodFinder(processor)
+    val erg = GCycleFinder(processors)
     var buffer = iStream.readNBytes(MB)
     while (buffer.isNotEmpty()) {
         buffer.forEach { byte ->
@@ -56,13 +57,17 @@ private fun calculateErgodicity(type: Generator, processor: PeriodProcessor) {
         buffer = iStream.readNBytes(MB)
     }
     iStream.close()
+    return erg
 }
 
 suspend fun calculateStatistics(type: Generator): List<PeriodProcessor> {
     println("Statistics calculations for ${type.name} started...")
     val mef = MathExpFinder(type)
-    calculateErgodicity(type, mef)
-    val stdDevFinder = StandardDeviationFinder(type, mef.getAvgPeriod())
-    calculateErgodicity(type, stdDevFinder)
-    return listOf(mef, stdDevFinder)
+    val distributionProc = DistributionDataProcessor(type)
+    val finder = calculateGCycles(type, listOf(mef, distributionProc))
+    println(type.name)
+    finder.showPredictorsResults()
+    //val stdDevFinder = StandardDeviationFinder(type, mef.getAvgPeriod())
+    //calculateGCycles(type, listOf(stdDevFinder))
+    return listOf(mef, distributionProc)
 }

@@ -7,15 +7,15 @@ import kotlin.math.max
 import kotlin.math.min
 
 class MathExpFinder(val generator: Generator): PeriodProcessor {
-    private var minPeriod: Long = Long.MAX_VALUE
+    private var minPeriod: Int = Int.MAX_VALUE
         private set
-    private var maxPeriod: Long = Long.MIN_VALUE
+    private var maxPeriod: Int = Int.MIN_VALUE
         private set
 
     /**
      * Buffer for found periods
      */
-    private val foundPeriods = mutableListOf<Long>()
+    private val foundPeriods = mutableListOf<Int>()
 
     /**
      * In order to economize memory usage, we save avg period instead of list of all periods
@@ -36,7 +36,7 @@ class MathExpFinder(val generator: Generator): PeriodProcessor {
     fun getAvgPeriod(): BigDecimal = avgPeriod
 
 
-    override fun processNewPeriod(period: Long) {
+    override fun processNewPeriod(period: Int) {
         minPeriod = min(minPeriod, period)
         maxPeriod = max(maxPeriod, period)
         foundPeriods.add(period)
