@@ -14,20 +14,22 @@ class GCycleFinder(private val periodProcessors: List<PeriodProcessor>) {
      * An alphabet-sized array for counting the number of occurrences of each number in the current subsequence
      */
     private val countsOfNumbers: Array<Int> = Array(256) { 0 }
-    private val firstPartSizes = (1300..1550 step 50).toList()
-    private val predictors = firstPartSizes.map { fps ->
-        (
-                GCyclePredictor(
-                    this,
-                    PredictorParameters(
-                        firstPartMinSize = fps,
-                        periodMathesCount = 254
-                    )
+    private val firstPartSizes = (3000..4000 step 100)
+    private val periodMatches = listOf(254)
+    private val predictors = firstPartSizes.flatMap { fps ->
+        periodMatches.map { period ->
+            GCyclePredictor(
+                this,
+                PredictorParameters(
+                    firstPartMinSize = fps,
+                    periodMathesCount = period
                 )
-                )
+            )
+        }
     }
 
-    private fun getCurrentNotPresentAlphabetNumbers() = countsOfNumbers.mapIndexedNotNull { index, i -> if(i == 0) index else null }
+    private fun getCurrentNotPresentAlphabetNumbers() =
+        countsOfNumbers.mapIndexedNotNull { index, i -> if (i == 0) index else null }.toHashSet()
 
     var period: Int = 0
         private set
@@ -46,7 +48,7 @@ class GCycleFinder(private val periodProcessors: List<PeriodProcessor>) {
      */
     private fun dropOldest(): Boolean {
         val first = sequenceOfCurrentPeriod.removeFirst().toInt()
-        val newCountsOfFirstValue = countsOfNumbers[first] - 1
+        val newCountsOfFirstValue = (countsOfNumbers[first] - 1).coerceAtLeast(0)
         countsOfNumbers[first] = newCountsOfFirstValue
         period--
         return newCountsOfFirstValue != 0
@@ -74,10 +76,10 @@ class GCycleFinder(private val periodProcessors: List<PeriodProcessor>) {
     fun append(byte: UByte) {
         sequenceOfCurrentPeriod.add(byte)
         val int = byte.toInt()
-        countsOfNumbers[byte.toInt()]++
-        period++
         val notPresent = getCurrentNotPresentAlphabetNumbers()
         predictors.forEach { p -> p.predict(int, notPresent) }
+        countsOfNumbers[byte.toInt()]++
+        period++
         if (checkAllValuesIsPresent()) {
             processNewPeriod()
             checkSubSequences()
@@ -85,22 +87,13 @@ class GCycleFinder(private val periodProcessors: List<PeriodProcessor>) {
     }
 
     fun showPredictorsResults() {
-        predictors.forEach { p -> p.showResults() }
-    }
-
-}
-
-@OptIn(ExperimentalUnsignedTypes::class)
-fun UByteArray.toInt(): Int {
-    val buffer = this
-    return when (buffer.size) {
-        0 -> throw IllegalArgumentException("Cannot convert empty Bytearray to Int")
-        1 -> buffer[0].toInt() shl 0xff
-        2 -> (buffer[0].toInt() shl 8) or (buffer[1].toInt() shl 0xff)
-        3 -> (buffer[0].toInt() shl 16) or (buffer[1].toInt() shl 8) or (buffer[2].toInt() shl 0xff)
-        else -> (buffer[0].toInt() shl 24) or
-                (buffer[1].toInt() shl 16) or
-                (buffer[2].toInt() shl 8) or
-                (buffer[3].toInt() and 0xff)
+        println()
+        println("___________________________________________")
+        println("___________________________________________")
+        //predictors.sortedByDescending { it.getSuccessPredictRatio() }.forEach { p -> p.showResults() }
+        predictors.maxBy { it.getSuccessPredictRatio() }.showResults()
+        println("___________________________________________")
+        println("___________________________________________")
+        println()
     }
 }
