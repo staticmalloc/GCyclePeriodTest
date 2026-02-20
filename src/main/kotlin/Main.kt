@@ -3,13 +3,9 @@ import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
-import statistic.DistributionDataProcessor
-import statistic.MathExpFinder
 import statistic.PeriodProcessor
-import statistic.StandardDeviationFinder
 import java.io.File
 import java.util.concurrent.Executors
-import kotlin.math.absoluteValue
 
 private const val BUFFER_SIZE = 8 * 1024 * 1024
 

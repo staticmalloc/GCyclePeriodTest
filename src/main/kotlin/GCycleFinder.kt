@@ -1,6 +1,9 @@
 import statistic.PeriodProcessor
 import java.util.*
 
+/**
+ * Класс для нахождения g-цикла, которых также хранит его подпоследовательность и количества появлений каждого байта
+ */
 class GCycleFinder(private val periodProcessors: List<PeriodProcessor>) {
 
     constructor(processor: PeriodProcessor) : this(listOf(processor))
@@ -14,22 +17,27 @@ class GCycleFinder(private val periodProcessors: List<PeriodProcessor>) {
      * An alphabet-sized array for counting the number of occurrences of each number in the current subsequence
      */
     private val countsOfNumbers: Array<Int> = Array(256) { 0 }
-    private val firstPartSizes = (3000..4000 step 100)
-    private val periodMatches = listOf(254)
-    private val predictors = firstPartSizes.flatMap { fps ->
-        periodMatches.map { period ->
+    //private val firstPartSizes = (0..0 step 50)
+    //private val periodMatches = listOf(131)
+
+    private val sensitivities = listOf(4,8,12,15)
+    private val predictors = sensitivities.map { s ->
             GCyclePredictor(
                 this,
                 PredictorParameters(
-                    firstPartMinSize = fps,
-                    periodMathesCount = period
+                    firstPartMinSize = 0,
+                    periodMathesCount = 129,
+                    s,
                 )
             )
         }
-    }
 
-    private fun getCurrentNotPresentAlphabetNumbers() =
-        countsOfNumbers.mapIndexedNotNull { index, i -> if (i == 0) index else null }.toHashSet()
+
+    /**
+     * Получает подмножество символов алфавита, который меньше threshold в текущей подпоследовательности
+     */
+    private fun getCurrentNotPresentAlphabetNumbers(threshold: Int = 0) =
+        countsOfNumbers.mapIndexedNotNull { index, i -> if (i <= threshold) index else null }.toHashSet()
 
     var period: Int = 0
         private set
@@ -54,6 +62,8 @@ class GCycleFinder(private val periodProcessors: List<PeriodProcessor>) {
         return newCountsOfFirstValue != 0
     }
 
+    // Отправляет длину нового g-периода статистическим утилитам обработчикам
+    // Например поиск мат. ожидания и т.п.
     private fun processNewPeriod() {
         periodProcessors.forEach { periodProcessor ->
             periodProcessor.processNewPeriod(period)
@@ -73,13 +83,20 @@ class GCycleFinder(private val periodProcessors: List<PeriodProcessor>) {
         }
     }
 
+    /**
+     * Добавляет следующий байт из текущей псевдослучайной последовательности
+     */
     fun append(byte: UByte) {
         sequenceOfCurrentPeriod.add(byte)
         val int = byte.toInt()
-        val notPresent = getCurrentNotPresentAlphabetNumbers()
-        predictors.forEach { p -> p.predict(int, notPresent) }
+        // Сначала пробуем предсказать (Отправляем предсказателям правильный следующий байт)
+        predictors.forEach { p -> p.predict(int, getCurrentNotPresentAlphabetNumbers(p.params.sensitiveThreshold)) }
+        // Затем инкрементируем количество добавленного символа
         countsOfNumbers[byte.toInt()]++
+        // Увеличиваем длину периода
         period++
+        // Если после добавления подпоследовательность содержит все символы
+        // то значит мы нашли очередной g-период и отправляем его на обработку статистическим утилитам
         if (checkAllValuesIsPresent()) {
             processNewPeriod()
             checkSubSequences()
@@ -90,8 +107,8 @@ class GCycleFinder(private val periodProcessors: List<PeriodProcessor>) {
         println()
         println("___________________________________________")
         println("___________________________________________")
-        //predictors.sortedByDescending { it.getSuccessPredictRatio() }.forEach { p -> p.showResults() }
-        predictors.maxBy { it.getSuccessPredictRatio() }.showResults()
+        predictors.sortedByDescending { it.getSuccessPredictRatio() }.forEach { p -> p.showResults() }
+        //predictors.maxBy { it.getSuccessPredictRatio() }.showResults()
         println("___________________________________________")
         println("___________________________________________")
         println()

@@ -3,24 +3,41 @@ import java.math.BigInteger
 
 class GCyclePredictor(
     private val finder: GCycleFinder,
-    private val params: PredictorParameters,
+    val params: PredictorParameters,
 ) {
+    /**
+     * Количество пропущенных
+     */
     private var skipped: BigInteger = BigInteger.ZERO
+
+    /**
+     * Количество промахов
+     */
     private var missed: BigInteger = BigInteger.ZERO
+
+    /**
+     * Ассоциативный массив количества попаданий
+     * где ключ - это размер подмножества алфавита, в который действительно попал неизвестный следующий байт
+     */
     private var matched: MutableMap<Int, BigInteger> = mutableMapOf()
 
-    fun predict(trueValue: Int, notPresent: HashSet<Int>) {
-        val notPresentSize = notPresent.size
+    /**
+     * @param trueValue - реальный следующий символ из выходной последовательности генераторов
+     * @param notPresentByThreshold - подмножество символов алфавита, которые встречаются реже чем threshold
+     */
+    fun predict(trueValue: Int, notPresentByThreshold: HashSet<Int>) {
+        val notPresentSize = notPresentByThreshold.size
         val period = finder.period
         if (255 - notPresentSize < params.periodMathesCount || period < params.firstPartMinSize) {
             skipped++
             return
         }
-        if (trueValue in notPresent) {
-            if (notPresentSize > 1)
-                println()
+
+        if (trueValue in notPresentByThreshold) {
+            // попадание в подмножество
             matched[notPresentSize] = matched.getOrDefault(notPresentSize, BigInteger.ZERO) + BigInteger.ONE
         } else {
+            // промах
             missed++
         }
     }
@@ -36,7 +53,7 @@ class GCyclePredictor(
         println("MISSED COUNT : $missed")
         matched.forEach {
             println(
-                "MATCHED with ${String.format("%.2f", (1.0 / it.key))}: ${it.value}"
+                "MATCHED with count ${it.key}: ${it.value}"
             )
         }
 
@@ -45,9 +62,10 @@ class GCyclePredictor(
         results.forEach { r ->
             val total = r.skip + r.miss + r.match
             println("Обработано мегабайт: ${total / 1024 / 1024}")
-            println("Минимальный размер первой части g-цикла: ${params.firstPartMinSize} байт")
-            println("Минимальное кол-во символов в подпоследовательности: ${params.periodMathesCount} байт")
-            println("Доля попаданий от всей последовательности: ${r.match / total}")
+            //println("Минимальный размер первой части g-цикла: ${params.firstPartMinSize} байт")
+            //println("Минимальное кол-во символов в подпоследовательности: ${params.periodMathesCount} байт")
+            println("Чувствительность: ${params.sensitiveThreshold} шт")
+            //println("Доля попаданий от всей последовательности: ${r.match / total}")
             val ratio = r.match / (r.miss + r.match)
             println("Доля попаданий от кол-ва попыток: $ratio")
             println("Отклонение от 1/256 (0.00390625): ${String.format("%.12f", ratio - randomRatio)}")
@@ -70,13 +88,24 @@ data class PredictorParameters(
      * Min length of not full g-cycle for making prediction
      */
     val firstPartMinSize: Int,
+
     /**
      * Min count of numbers from alphabet already present in previous subsequence for making prediction
      * 0 - 254
      */
     val periodMathesCount: Int,
+
+    /**
+     * 0 - 15
+     * Уровень количества появлений какого-либо символа в подпоследовательности,
+     * по которому мы будем брать или отсеивать эти символы для формирования подмножества предсказания
+     * Например, если = 3, то мы возьмем все символы (В подмножество алфавита для предсказания), которые встречаются 3 и меньше раз в текущем неполном периоде
+     * и далее будем говорить, что следущий байт скорее всего из этого подмножества
+     */
+    val sensitiveThreshold: Int,
 ) {
     init {
         require(periodMathesCount in 0..254) { throw IllegalArgumentException() }
+        require(sensitiveThreshold in 0..127) { throw IllegalArgumentException() }
     }
 }
