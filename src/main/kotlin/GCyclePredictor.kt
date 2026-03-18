@@ -28,7 +28,7 @@ class GCyclePredictor(
     fun predict(trueValue: Int, notPresentByThreshold: HashSet<Int>) {
         val notPresentSize = notPresentByThreshold.size
         val period = finder.period
-        if (255 - notPresentSize < params.periodMathesCount || period < params.firstPartMinSize) {
+        if (256 - notPresentSize < params.periodMathesCount || period < params.firstPartMinSize) {
             skipped++
             return
         }
@@ -90,8 +90,8 @@ data class PredictorParameters(
     val firstPartMinSize: Int,
 
     /**
-     * Min count of numbers from alphabet already present in previous subsequence for making prediction
-     * 0 - 254
+     * Min count of numbers from alphabet already present(by threshold) in previous subsequence for making prediction
+     * 129 - 255
      */
     val periodMathesCount: Int,
 
@@ -105,7 +105,7 @@ data class PredictorParameters(
     val sensitiveThreshold: Int,
 ) {
     init {
-        require(periodMathesCount in 0..254) { throw IllegalArgumentException() }
+        require(periodMathesCount in 129..255) { throw IllegalArgumentException() }
         require(sensitiveThreshold in 0..127) { throw IllegalArgumentException() }
     }
 }

@@ -25,7 +25,7 @@ class GCycleFinder(private val periodProcessors: List<PeriodProcessor>) {
             GCyclePredictor(
                 this,
                 PredictorParameters(
-                    firstPartMinSize = 0,
+                    firstPartMinSize = 1153,
                     periodMathesCount = 129,
                     s,
                 )
