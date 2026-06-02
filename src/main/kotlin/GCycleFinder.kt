@@ -25,8 +25,8 @@ class GCycleFinder(private val periodProcessors: List<PeriodProcessor>) {
             GCyclePredictor(
                 this,
                 PredictorParameters(
-                    firstPartMinSize = 1153,
-                    periodMathesCount = 129,
+                    firstPartMinSize = 0,
+                    periodMathesCount = 2,
                     s,
                 )
             )
@@ -103,11 +103,12 @@ class GCycleFinder(private val periodProcessors: List<PeriodProcessor>) {
         }
     }
 
-    fun showPredictorsResults() {
+    fun showPredictorsResults(prngName: String) {
         println()
         println("___________________________________________")
         println("___________________________________________")
-        predictors.sortedByDescending { it.getSuccessPredictRatio() }.forEach { p -> p.showResults() }
+        println("Генератор, Размер МБ, S, L, F, Пропущено, Промахов, Верно предсказано*, Точность, % отклонения от 1/256")
+        predictors.sortedByDescending { it.getSuccessPredictRatio() }.forEach { p -> p.showResults(prngName) }
         //predictors.maxBy { it.getSuccessPredictRatio() }.showResults()
         println("___________________________________________")
         println("___________________________________________")

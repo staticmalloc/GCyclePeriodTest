@@ -1,3 +1,5 @@
+import genarator.MB
+import genarator.TEXT_FILE_SIZE_MB
 import java.math.BigInteger
 
 
@@ -47,29 +49,35 @@ class GCyclePredictor(
         return r.match / (r.miss + r.match)
     }
 
-    fun showResults() {
-        println("_____________PREDICTION RESULTS_____________")
-        println("SKIPPED COUNT: $skipped")
-        println("MISSED COUNT : $missed")
-        matched.forEach {
-            println(
-                "MATCHED with count ${it.key}: ${it.value}"
-            )
-        }
-
+    fun showResults(prngName: String) {
         val randomRatio = 1.0 / 256
         val results = listOf(PredictionResults(skipped.toLong(), missed.toLong(), matched))
+
         results.forEach { r ->
-            val total = r.skip + r.miss + r.match
-            println("Обработано мегабайт: ${total / 1024 / 1024}")
-            //println("Минимальный размер первой части g-цикла: ${params.firstPartMinSize} байт")
-            //println("Минимальное кол-во символов в подпоследовательности: ${params.periodMathesCount} байт")
-            println("Чувствительность: ${params.sensitiveThreshold} шт")
-            //println("Доля попаданий от всей последовательности: ${r.match / total}")
             val ratio = r.match / (r.miss + r.match)
-            println("Доля попаданий от кол-ва попыток: $ratio")
-            println("Отклонение от 1/256 (0.00390625): ${String.format("%.12f", ratio - randomRatio)}")
-            println("Процент приведенный к битам: ${String.format("%.10f", ratio.times(12800))}%")
+            //println("Генератор, Размер МБ, S, L, F, Пропущено, Промахов, Верно предсказано*, Точность, % отклонения от 1/256")
+            listOf<String>(
+                prngName,
+                TEXT_FILE_SIZE_MB.toString(),
+                params.sensitiveThreshold.toString(),
+                params.firstPartMinSize.toString(),
+                params.periodMathesCount.toString(),
+                r.skip.toString(),
+                r.miss.toString(),
+                "${TEXT_FILE_SIZE_MB * MB - r.skip}",
+                String.format("%,f", ratio),
+                String.format("%,12f", (ratio - randomRatio)*256*100) + "%"
+            ).joinToString(" ").let { println(it) }
+            //print(prngName)
+            //print(TEXT_FILE_SIZE_MB)
+            //println("S: ${params.sensitiveThreshold}")
+            //println("L: ${params.firstPartMinSize}")
+            //println("F: ${params.periodMathesCount}")
+            //println("Пропущено: ${r.skip}")
+            //println("Промахов: ${r.miss}")
+            //println("Верно предсказано*: ${TEXT_FILE_SIZE_MB * MB - r.skip}")
+            //println("Точность: ${String.format("%,f", ratio)}")
+            //println("% отклонения от 1/256 (0,00390625): ${String.format("%,12f", (ratio - randomRatio)*256*100)}%")
         }
     }
 }
@@ -91,7 +99,7 @@ data class PredictorParameters(
 
     /**
      * Min count of numbers from alphabet already present(by threshold) in previous subsequence for making prediction
-     * 129 - 255
+     * 2 - 255
      */
     val periodMathesCount: Int,
 
@@ -105,7 +113,7 @@ data class PredictorParameters(
     val sensitiveThreshold: Int,
 ) {
     init {
-        require(periodMathesCount in 129..255) { throw IllegalArgumentException() }
+        require(periodMathesCount in 2..255) { throw IllegalArgumentException() }
         require(sensitiveThreshold in 0..127) { throw IllegalArgumentException() }
     }
 }

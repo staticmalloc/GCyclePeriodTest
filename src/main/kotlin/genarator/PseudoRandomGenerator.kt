@@ -12,7 +12,9 @@ const val DEFAULT_SEED =
 
 const val DEFAULT_SIZE_MB = 1024
 const val RANDOM_SEQUENCE_PATH = "sequences/"
-const val SUFFIX = "_100MB.txt"
+
+const val TEXT_FILE_SIZE_MB = 100
+const val SUFFIX = "_${TEXT_FILE_SIZE_MB}MB.txt"
 const val MB = 1024 * 1024
 
 
