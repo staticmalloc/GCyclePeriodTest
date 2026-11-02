@@ -13,14 +13,14 @@ private const val BUFFER_SIZE = 8 * 1024 * 1024
  * Мощность алфавита в битах (2..32). Размер алфавита = 2^ALPHABET_BITS.
  * При значении 8 поведение эквивалентно прежнему (1 байт = 1 символ).
  */
-private const val ALPHABET_BITS = 8
+private const val ALPHABET_BITS = 16
 
 fun main() {
 
     // Generates pseudo random sequences within each Generator and writes them to files
     // By default it will generate 1GB files for by each Generator
 
-    val currentGenTypes = listOf(Generator.ISAAC) // specified
+    val currentGenTypes = Generator.entries - Generator.TEST // specified
 //        Generator.entries // - all
 //
 //    currentGenTypes
@@ -35,7 +35,8 @@ fun main() {
         currentGenTypes
             .map { type ->
                 async(dispatcher) {
-                    calculateStatistics(type)
+                    //calculateStatistics(type)
+                    calculatePredictionStatistics(type)
                 }
             }
     }
@@ -43,7 +44,7 @@ fun main() {
     runBlocking {
         coroutines.awaitAll()
     }.forEach {
-        it.forEach { it.stop() }
+        it.showPredictorsResults(it.type.name)
     }
 
     pool.shutdown()
@@ -58,7 +59,7 @@ private fun calculateGCycles(
     bits: Int = ALPHABET_BITS,
 ): GCycleFinder {
     val iStream = File(RANDOM_SEQUENCE_PATH + type.name + SUFFIX).inputStream()
-    val gCycleFinder = GCycleFinder(processors, bits)
+    val gCycleFinder = GCycleFinder(processors, bits, type)
     val mask = (1L shl bits) - 1
     // Аккумулятор битов для нарезки байтового потока на N-битные символы.
     var acc = 0L
@@ -88,4 +89,10 @@ suspend fun calculateStatistics(type: Generator, bits: Int = ALPHABET_BITS): Lis
     //val stdDevFinder = StandardDeviationFinder(type, mef.getAvgPeriod())
     //calculateGCycles(type, listOf(stdDevFinder))
     return listOf()
+}
+
+suspend fun calculatePredictionStatistics(type: Generator, bits: Int = ALPHABET_BITS): GCycleFinder {
+    println("Statistics calculations for ${type.name} started...")
+    val finder = calculateGCycles(type, listOf(), bits)
+    return finder
 }

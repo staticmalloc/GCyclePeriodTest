@@ -46,7 +46,7 @@ class GCyclePredictor(
 
     fun getSuccessPredictRatio(): Double {
         val r = PredictionResults(skipped.toLong(), missed.toLong(), matched)
-        return r.match / (r.miss + r.match)
+        return r.getSuccessPredictRatio()
     }
 
     fun showResults(prngName: String) {
@@ -54,8 +54,8 @@ class GCyclePredictor(
         val results = listOf(PredictionResults(skipped.toLong(), missed.toLong(), matched))
 
         results.forEach { r ->
-            val ratio = r.match / (r.miss + r.match)
-            //println("Генератор, Размер МБ, S, L, F, Пропущено, Промахов, Верно предсказано*, Точность, % отклонения от 1/256")
+            val ratio = r.getSuccessPredictRatio()
+            //println("Генератор, Размер МБ, S, L, F, Пропущено, Промахов, Общее число прогнозов, Точность, % отклонения от 1/256")
             listOf<String>(
                 prngName,
                 TEXT_FILE_SIZE_MB.toString(),
@@ -64,10 +64,12 @@ class GCyclePredictor(
                 params.periodMathesCount.toString(),
                 r.skip.toString(),
                 r.miss.toString(),
-                "${TEXT_FILE_SIZE_MB * MB - r.skip}",
-                String.format("%,f", ratio),
+                String.format("%,3f",(TEXT_FILE_SIZE_MB * MB * (8.0 / finder.bits) - r.skip)),
+                String.format("%.12f", ratio),
                 String.format("%,12f", (ratio - randomRatio) * finder.alphabetSize * 100) + "%"
-            ).joinToString(" ").let { println(it) }
+            ).joinToString(" ").let {
+                println(it)
+            }
             //print(prngName)
             //print(TEXT_FILE_SIZE_MB)
             //println("S: ${params.sensitiveThreshold}")
@@ -75,7 +77,7 @@ class GCyclePredictor(
             //println("F: ${params.periodMathesCount}")
             //println("Пропущено: ${r.skip}")
             //println("Промахов: ${r.miss}")
-            //println("Верно предсказано*: ${TEXT_FILE_SIZE_MB * MB - r.skip}")
+            //println("Общее число прогнозов: ${TEXT_FILE_SIZE_MB * MB - r.skip}")
             //println("Точность: ${String.format("%,f", ratio)}")
             //println("% отклонения от 1/256 (0,00390625): ${String.format("%,12f", (ratio - randomRatio)*256*100)}%")
         }
@@ -86,9 +88,19 @@ data class PredictionResults(
     val skip: Long,
     val miss: Long,
     // Кол-во попаданий, каждое из которых поделено на кол-во символов, участвовавших в конкретном предсказании
-    val match: Double
+    val matchRatio: Double,
+    val matchCount: BigInteger,
 ) {
-    constructor(skip: Long, miss: Long, matched: Map<Long, BigInteger>): this(skip, miss, matched.map { it.value.toDouble() / it.key }.sum())
+    constructor(skip: Long, miss: Long, matched: Map<Long, BigInteger>) : this(
+        skip,
+        miss,
+        matched.map { it.value.toDouble() / it.key }.sum(),
+        matched.values.sumOf { it }
+    )
+
+    fun getSuccessPredictRatio(): Double {
+        return matchRatio / (miss + matchCount.toLong())
+    }
 }
 
 data class PredictorParameters(

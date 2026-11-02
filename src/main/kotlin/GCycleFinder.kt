@@ -1,3 +1,4 @@
+import genarator.Generator
 import statistic.PeriodProcessor
 import java.util.*
 
@@ -9,9 +10,10 @@ import java.util.*
 class GCycleFinder(
     private val periodProcessors: List<PeriodProcessor>,
     val bits: Int = 8,
+    val type: Generator
 ) {
 
-    constructor(processor: PeriodProcessor, bits: Int = 8) : this(listOf(processor), bits)
+    constructor(processor: PeriodProcessor, bits: Int = 8, type: Generator) : this(listOf(processor), bits, type)
 
     init {
         require(bits in 2..32) { "bits must be in 2..32, but was $bits" }
@@ -47,7 +49,7 @@ class GCycleFinder(
     //private val firstPartSizes = (0..0 step 50)
     //private val periodMatches = listOf(131)
 
-    private val sensitivities = listOf(4,8,12,15)
+    private val sensitivities = listOf(0,1,2,4,8)
     private val predictors = sensitivities.map { s ->
             GCyclePredictor(
                 this,
@@ -196,7 +198,7 @@ class GCycleFinder(
         println()
         println("___________________________________________")
         println("___________________________________________")
-        println("Генератор, Размер МБ, S, L, F, Пропущено, Промахов, Верно предсказано*, Точность, % отклонения от 1/$alphabetSize")
+        println("Генератор, Размер МБ, S, L, F, Пропущено, Промахов, Общее число предсказаний, Точность, % отклонения от 1/$alphabetSize")
         predictors.sortedByDescending { it.getSuccessPredictRatio() }.forEach { p -> p.showResults(prngName) }
         //predictors.maxBy { it.getSuccessPredictRatio() }.showResults()
         println("___________________________________________")
