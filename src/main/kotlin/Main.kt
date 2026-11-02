@@ -9,12 +9,18 @@ import java.util.concurrent.Executors
 
 private const val BUFFER_SIZE = 8 * 1024 * 1024
 
+/**
+ * Мощность алфавита в битах (2..32). Размер алфавита = 2^ALPHABET_BITS.
+ * При значении 8 поведение эквивалентно прежнему (1 байт = 1 символ).
+ */
+private const val ALPHABET_BITS = 8
+
 fun main() {
 
     // Generates pseudo random sequences within each Generator and writes them to files
     // By default it will generate 1GB files for by each Generator
 
-    val currentGenTypes = Generator.entries - Generator.TEST // specified
+    val currentGenTypes = listOf(Generator.ISAAC) // specified
 //        Generator.entries // - all
 //
 //    currentGenTypes
@@ -46,25 +52,38 @@ fun main() {
 }
 
 
-private fun calculateGCycles(type: Generator, processors: List<PeriodProcessor>): GCycleFinder {
+private fun calculateGCycles(
+    type: Generator,
+    processors: List<PeriodProcessor>,
+    bits: Int = ALPHABET_BITS,
+): GCycleFinder {
     val iStream = File(RANDOM_SEQUENCE_PATH + type.name + SUFFIX).inputStream()
-    val erg = GCycleFinder(processors)
+    val gCycleFinder = GCycleFinder(processors, bits)
+    val mask = (1L shl bits) - 1
+    // Аккумулятор битов для нарезки байтового потока на N-битные символы.
+    var acc = 0L
+    var nbits = 0
     var buffer = iStream.readNBytes(BUFFER_SIZE)
     while (buffer.isNotEmpty()) {
         buffer.forEach { byte ->
-            erg.append(byte.toUByte())
+            acc = (acc shl 8) or (byte.toLong() and 0xFF)
+            nbits += 8
+            while (nbits >= bits) {
+                nbits -= bits
+                gCycleFinder.append((acc ushr nbits) and mask)
+            }
         }
         buffer = iStream.readNBytes(BUFFER_SIZE)
     }
     iStream.close()
-    return erg
+    return gCycleFinder
 }
 
-suspend fun calculateStatistics(type: Generator): List<PeriodProcessor> {
+suspend fun calculateStatistics(type: Generator, bits: Int = ALPHABET_BITS): List<PeriodProcessor> {
     println("Statistics calculations for ${type.name} started...")
     //val mef = MathExpFinder(type)
     //val distributionProc = DistributionDataProcessor(type)
-    val finder = calculateGCycles(type, listOf())
+    val finder = calculateGCycles(type, listOf(), bits)
     finder.showPredictorsResults(type.name)
     //val stdDevFinder = StandardDeviationFinder(type, mef.getAvgPeriod())
     //calculateGCycles(type, listOf(stdDevFinder))

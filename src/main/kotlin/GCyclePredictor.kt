@@ -19,23 +19,23 @@ class GCyclePredictor(
 
     /**
      * Ассоциативный массив количества попаданий
-     * где ключ - это размер подмножества алфавита, в который действительно попал неизвестный следующий байт
+     * где ключ - это размер подмножества алфавита, в который действительно попал неизвестный следующий символ
      */
-    private var matched: MutableMap<Int, BigInteger> = mutableMapOf()
+    private var matched: MutableMap<Long, BigInteger> = mutableMapOf()
 
     /**
      * @param trueValue - реальный следующий символ из выходной последовательности генераторов
-     * @param notPresentByThreshold - подмножество символов алфавита, которые встречаются реже чем threshold
+     * @param notPresentSize - размер подмножества символов алфавита, которые встречаются не чаще чем threshold
+     * @param trueValueIsNotPresent - попал ли trueValue в это подмножество
      */
-    fun predict(trueValue: Int, notPresentByThreshold: HashSet<Int>) {
-        val notPresentSize = notPresentByThreshold.size
+    fun predict(trueValue: Long, notPresentSize: Long, trueValueIsNotPresent: Boolean) {
         val period = finder.period
-        if (256 - notPresentSize < params.periodMathesCount || period < params.firstPartMinSize) {
+        if (finder.alphabetSize - notPresentSize < params.periodMathesCount || period < params.firstPartMinSize) {
             skipped++
             return
         }
 
-        if (trueValue in notPresentByThreshold) {
+        if (trueValueIsNotPresent) {
             // попадание в подмножество
             matched[notPresentSize] = matched.getOrDefault(notPresentSize, BigInteger.ZERO) + BigInteger.ONE
         } else {
@@ -50,7 +50,7 @@ class GCyclePredictor(
     }
 
     fun showResults(prngName: String) {
-        val randomRatio = 1.0 / 256
+        val randomRatio = 1.0 / finder.alphabetSize
         val results = listOf(PredictionResults(skipped.toLong(), missed.toLong(), matched))
 
         results.forEach { r ->
@@ -66,7 +66,7 @@ class GCyclePredictor(
                 r.miss.toString(),
                 "${TEXT_FILE_SIZE_MB * MB - r.skip}",
                 String.format("%,f", ratio),
-                String.format("%,12f", (ratio - randomRatio)*256*100) + "%"
+                String.format("%,12f", (ratio - randomRatio) * finder.alphabetSize * 100) + "%"
             ).joinToString(" ").let { println(it) }
             //print(prngName)
             //print(TEXT_FILE_SIZE_MB)
@@ -88,7 +88,7 @@ data class PredictionResults(
     // Кол-во попаданий, каждое из которых поделено на кол-во символов, участвовавших в конкретном предсказании
     val match: Double
 ) {
-    constructor(skip: Long, miss: Long, matched: Map<Int, BigInteger>): this(skip, miss, matched.map { it.value.toDouble() / it.key }.sum())
+    constructor(skip: Long, miss: Long, matched: Map<Long, BigInteger>): this(skip, miss, matched.map { it.value.toDouble() / it.key }.sum())
 }
 
 data class PredictorParameters(
@@ -98,8 +98,8 @@ data class PredictorParameters(
     val firstPartMinSize: Int,
 
     /**
-     * Min count of numbers from alphabet already present(by threshold) in previous subsequence for making prediction
-     * 2 - 255
+     * Min count of numbers from alphabet already present(by threshold) in previous subsequence for making prediction.
+     * Минимум 2; верхняя граница ограничена размером алфавита и проверяется при использовании.
      */
     val periodMathesCount: Int,
 
@@ -113,7 +113,7 @@ data class PredictorParameters(
     val sensitiveThreshold: Int,
 ) {
     init {
-        require(periodMathesCount in 2..255) { throw IllegalArgumentException() }
+        require(periodMathesCount >= 2) { throw IllegalArgumentException() }
         require(sensitiveThreshold in 0..127) { throw IllegalArgumentException() }
     }
 }
